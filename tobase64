@@ -1,0 +1,66 @@
+#!/usr/local/bin/node
+
+var fs = require('fs');
+var path = require('path');
+
+function parseArgv(argv) {
+    var target = argv[2];
+    var dest = argv[3];
+    var debug = argv[4] === '-d';
+    var cwd = process.cwd();
+    return Promise.resolve({
+        target: path.resolve(cwd, target),
+        dest: path.resolve(cwd, dest),
+        debug: debug
+    });
+}
+
+function readImage(opts) {
+    return new Promise(function (resolve, reject) {
+        fs.readFile(opts.target, function (err, buffer) {
+            if (err) {
+                reject(err);
+                return;
+            }
+            var options = Object.assign({}, opts, {
+                mime: path.extname(opts.target).substring(1),
+                buffer: buffer
+            });
+            if (options.debug) {
+                console.log(options);
+            }
+            resolve(options);
+        })
+    });
+}
+
+function toBase64(options) {
+    var base64 = 'data:image/' + options.mime + ';base64,' + options.buffer.toString('base64');
+    if (options.debug) {
+        console.log(base64);
+    }
+    return base64;
+}
+
+function writeBase64(options) {
+    return new Promise(function (resolve, reject) {
+        fs.writeFile(
+            options.dest,
+            toBase64(options),
+            function (err) {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve();
+            }
+        )
+    })
+}
+
+parseArgv(process.argv)
+    .then(readImage)
+    .then(writeBase64)
+    .catch(function (err) {
+        console.log(err)
+    });
